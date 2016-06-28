@@ -17,18 +17,9 @@
 package com.android.retaildemo;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.DownloadManager;
-import android.app.ProgressDialog;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.media.MediaPlayer;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -49,23 +40,20 @@ import java.io.File;
  * Note: this activity checks for the file retail_video.mp4 in the path specified by the system
  * property "ro.retaildemo.video_path". To run this, push your test video to that path.
  */
-public class DemoPlayer extends Activity {
+public class DemoPlayer extends Activity implements DownloadVideoTask.ResultListener {
 
     private static final String TAG = "DemoPlayer";
+    private static final boolean DEBUG = false;
 
     private static final String VIDEO_FILE_NAME = "retail_demo.mp4";
     private static final String PRELOADED_VIDEO_FILE = Environment.getDataPreloadsDemoDirectory()
             + File.separator + VIDEO_FILE_NAME;
 
     private PowerManager mPowerManager;
-    private DownloadManager mDlm;
-
-    private ProgressDialog mProgressDialog;
 
     private VideoView mVideoView;
     private int mVideoPosition;
-    private long mVideoDownloadId;
-    private String mDownloadedPath;
+    private String mDownloadPath;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,9 +76,8 @@ public class DemoPlayer extends Activity {
         setContentView(R.layout.retail_video);
 
         mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        mDlm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
 
-        mDownloadedPath = getObbDir().getPath() + File.separator + VIDEO_FILE_NAME;
+        mDownloadPath = getObbDir().getPath() + File.separator + VIDEO_FILE_NAME;
         mVideoView = (VideoView) findViewById(R.id.video_content);
 
         // Start playing the video when it is ready
@@ -112,11 +99,21 @@ public class DemoPlayer extends Activity {
     private void loadVideo() {
         // If the video is preloaded, then use that. Otherwise download it from the specified url.
         if (new File(PRELOADED_VIDEO_FILE).exists()) {
-            Log.i(TAG, "Using the preloaded video at " + PRELOADED_VIDEO_FILE);
+            if (DEBUG) Log.d(TAG, "Using the preloaded video at " + PRELOADED_VIDEO_FILE);
             setVideoPath(PRELOADED_VIDEO_FILE);
         } else {
-            downloadVideo();
+            new DownloadVideoTask(this, mDownloadPath, this).run();
         }
+    }
+
+    @Override
+    public void onFileDownloaded(final String filePath) {
+        mVideoView.post(new Runnable() {
+            @Override
+            public void run() {
+                mVideoView.setVideoPath(filePath);
+            }
+        });
     }
 
     @Override
@@ -175,46 +172,6 @@ public class DemoPlayer extends Activity {
         }
     }
 
-    private void downloadVideo() {
-        File downloadedFile = new File(mDownloadedPath);
-        if (downloadedFile.exists()) {
-            Log.i(TAG, "Using the alreaded downloaded video at " + mDownloadedPath);
-            // File already exists, no need to download it again.
-            setVideoPath(mDownloadedPath);
-            return;
-        }
-        if (!isConnectedToNetwork()) {
-            showErrorMsgDialog(R.string.no_network_connectivity);
-            return;
-        }
-
-        showProgressDialog();
-        final String location = getString(R.string.retail_demo_video_download_url);
-        final DownloadManager.Request request = new DownloadManager.Request(
-                Uri.parse(location));
-        request.setDestinationUri(Uri.fromFile(downloadedFile));
-        registerReceiver(mDownloadReceiver,
-                new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
-        mVideoDownloadId = mDlm.enqueue(request);
-        Log.i(TAG, "Started downloading the video at " + mDownloadedPath);
-    }
-
-    private void showProgressDialog() {
-        mProgressDialog = new ProgressDialog(this);
-        mProgressDialog.setMessage(getString(R.string.downloading_video_msg));
-        mProgressDialog.setIndeterminate(false);
-        mProgressDialog.setCancelable(false);
-        mProgressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-        mProgressDialog.show();
-    }
-
-    private void showErrorMsgDialog(int msgResId) {
-        new AlertDialog.Builder(this)
-                .setMessage(msgResId)
-                .setCancelable(false)
-                .show();
-    }
-
     private void forceTurnOnScreen() {
         final PowerManager.WakeLock wakeLock = mPowerManager.newWakeLock(
                 PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, TAG);
@@ -222,41 +179,4 @@ public class DemoPlayer extends Activity {
         // Device waken up, release the wake-lock
         wakeLock.release();
     }
-
-    private boolean isConnectedToNetwork() {
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(
-                Context.CONNECTIVITY_SERVICE);
-        NetworkInfo info = cm.getActiveNetworkInfo();
-        return info != null && info.isConnected();
-    }
-
-    private BroadcastReceiver mDownloadReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (!DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(intent.getAction())) {
-                return;
-            }
-            final DownloadManager.Query query =
-                    new DownloadManager.Query().setFilterById(mVideoDownloadId);
-            Cursor cursor = mDlm.query(query);
-            try {
-                if (cursor != null & cursor.moveToFirst()) {
-                    final int columnIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-                    if (cursor.getInt(columnIndex) == DownloadManager.STATUS_SUCCESSFUL) {
-                        unregisterReceiver(mDownloadReceiver);
-                        // TODO: Persist the downloaded location to use it next time.
-                        String fileUri = cursor.getString(
-                                cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI));
-                        Log.i(TAG, "Video successfully downloaded at " + fileUri);
-                        mVideoView.setVideoURI(Uri.parse(fileUri));
-                        mProgressDialog.dismiss();
-                    }
-                }
-            } finally {
-                if (cursor != null) {
-                    cursor.close();
-                }
-            }
-        }
-    };
 }
