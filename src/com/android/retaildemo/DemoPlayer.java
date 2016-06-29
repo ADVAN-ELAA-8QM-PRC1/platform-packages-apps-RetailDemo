@@ -102,7 +102,7 @@ public class DemoPlayer extends Activity {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (UserManager.get(this).isDemoUser()) {
+        if (getSystemService(UserManager.class).isDemoUser()) {
             disableSelf();
         }
         return true;
