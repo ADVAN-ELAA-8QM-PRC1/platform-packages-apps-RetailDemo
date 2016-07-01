@@ -52,10 +52,10 @@ class DownloadVideoTask {
 
     private static final int CLEANUP_DELAY_MILLIS = 2 * 1000; // 2 seconds
 
-    private Context mContext;
-    private DownloadManager mDlm;
-    private File mDownloadFile;
-    private ResultListener mListener;
+    private final Context mContext;
+    private final DownloadManager mDlm;
+    private final File mDownloadFile;
+    private final ResultListener mListener;
 
     private Handler mHandler;
 
@@ -86,10 +86,9 @@ class DownloadVideoTask {
         mHandler = new ThreadHandler(thread.getLooper());
 
         // If file already exists, no need to download it again.
-        if (mDownloadFile.exists()) {
-            if (DEBUG) Log.d(TAG, "Using the alreaded downloaded video at "
-                    + mDownloadFile.getPath());
-            mListener.onFileDownloaded(mDownloadFile.getPath());
+        if (mDownloadFile.exists() || new File(DemoPlayer.PRELOADED_VIDEO_FILE).exists()) {
+            if (DEBUG) Log.d(TAG, "Video already exists at either " + mDownloadFile.getPath()
+                    + " or " + DemoPlayer.PRELOADED_VIDEO_FILE + ", checking for an update... ");
             mHandler.sendMessage(mHandler.obtainMessage(MSG_CHECK_FOR_UPDATE));
         } else {
             if (!isConnectedToNetwork()) {
@@ -185,10 +184,10 @@ class DownloadVideoTask {
                     }
                     if (new File(mDownloadedPath).renameTo(mDownloadFile)) {
                         mListener.onFileDownloaded(mDownloadFile.getPath());
-                        final String downloadFileName = mDownloadFile.getName();
+                        final String downloadFileName = getFileBaseName(mDownloadFile.getName());
                         // Delete other files in the directory
                         for (File file : mDownloadFile.getParentFile().listFiles()) {
-                            if (file.getName().startsWith(downloadFileName)
+                            if (getFileBaseName(file.getName()).startsWith(downloadFileName)
                                     && !file.getPath().equals(mDownloadFile.getPath())) {
                                 file.delete();
                             }
@@ -265,6 +264,11 @@ class DownloadVideoTask {
                 .setMessage(msgResId)
                 .setCancelable(false)
                 .create();
+    }
+
+    private String getFileBaseName(String fileName) {
+        final int pos = fileName.lastIndexOf(".");
+        return pos > 0 ? fileName.substring(0, pos) : fileName;
     }
 
     interface ResultListener {
