@@ -18,4 +18,13 @@
     <!-- Title of the application. Used as a fallback for TalkBack when activity label is not specified (an accessibility service). [CHAR LIMIT=NONE] -->
     <string name="retail_demo_title">Retail demo</string>
 
+    <!-- URL where the retail demo video can be downloaded from. [DO NOT TRANSLATE] -->
+    <string name="retail_demo_video_download_url" translatable="false"></string>
+
+    <!-- Message displayed to the user when downloading the video. [CHAR LIMIT=NONE] -->
+    <string name="downloading_video_msg">Downloading video\u2026</string>
+
+    <!-- Message displayed to the user when the device has no network connectivity to download video. [CHAR LIMIT=NONE] -->
+    <string name="no_network_connectivity">No network connectivity to download video</string>
+
 </resources>
