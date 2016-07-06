@@ -32,7 +32,7 @@
                 android:exported="true"
                 android:immersive="true"
                 android:screenOrientation="nosensor"
-                android:theme="@android:style/Theme.Material.Light.NoActionBar.Fullscreen">
+                android:theme="@android:style/Theme.Wallpaper.NoTitleBar.Fullscreen">
             <!-- Higher priority than setup wizard -->
             <intent-filter android:priority="6">
                 <action android:name="android.intent.action.MAIN" />

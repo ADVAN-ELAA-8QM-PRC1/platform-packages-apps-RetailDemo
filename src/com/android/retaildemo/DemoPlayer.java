@@ -25,6 +25,7 @@ import android.os.Environment;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.os.UserManager;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -102,23 +103,57 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
             }
         });
 
+        mVideoView.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+            @Override
+            public boolean onError(MediaPlayer mp, int what, int extra) {
+                displayFallbackView();
+                return true;
+            }
+        });
+
         loadVideo();
+    }
+
+    private void displayFallbackView() {
+        if (DEBUG) Log.d(TAG, "Showing the fallback view");
+        findViewById(R.id.fallback_layout).setVisibility(View.VISIBLE);
+        mVideoView.setVisibility(View.GONE);
+    }
+
+    private void displayVideoView() {
+        mVideoView.setVisibility(View.VISIBLE);
+        findViewById(R.id.fallback_layout).setVisibility(View.GONE);
     }
 
     private void loadVideo() {
         // If the video is already downloaded, then use that and check for an update.
         // Otherwise check if the video is preloaded, if not download the video from the
         // specified url.
+        boolean isVideoSet = false;
         if (new File(mDownloadPath).exists()) {
             if (DEBUG) Log.d(TAG, "Using the already existing video at " + mDownloadPath);
             setVideoPath(mDownloadPath);
+            isVideoSet = true;
         } else if (new File(PRELOADED_VIDEO_FILE).exists()) {
             if (DEBUG) Log.d(TAG, "Using the preloaded video at " + PRELOADED_VIDEO_FILE);
             setVideoPath(PRELOADED_VIDEO_FILE);
+            isVideoSet = true;
+        }
+
+        final String downloadUrl = getString(R.string.retail_demo_video_download_url);
+        // If the download url is empty, then no need to start the download task.
+        if (TextUtils.isEmpty(downloadUrl)) {
+            if (!isVideoSet) {
+                displayFallbackView();
+            }
+            return;
         }
         if (!checkIfDownloadingAllowed()) {
             if (DEBUG) Log.d(TAG, "Downloading not allowed, neither starting download nor checking"
                     + " for an update.");
+            if (!isVideoSet) {
+                displayFallbackView();
+            }
             return;
         }
         new DownloadVideoTask(this, mDownloadPath, this).run();
@@ -138,12 +173,17 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
 
     @Override
     public void onFileDownloaded(final String filePath) {
-        mVideoView.post(new Runnable() {
+        runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                mVideoView.setVideoPath(filePath);
+                setVideoPath(filePath);
             }
         });
+    }
+
+    @Override
+    public void onError() {
+        displayFallbackView();
     }
 
     @Override
@@ -195,10 +235,10 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
         // Load the video from resource
         try {
             mVideoView.setVideoPath(videoPath);
+            displayVideoView();
         } catch (Exception e) {
             Log.e(TAG, "Exception setting video uri! " + e.getMessage());
-            // If video cannot be load, reset retail mode
-            finish();
+            displayFallbackView();
         }
     }
 

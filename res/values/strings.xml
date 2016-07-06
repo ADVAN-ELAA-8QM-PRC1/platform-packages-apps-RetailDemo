@@ -24,7 +24,7 @@
     <!-- Message displayed to the user when downloading the video. [CHAR LIMIT=NONE] -->
     <string name="downloading_video_msg">Downloading video\u2026</string>
 
-    <!-- Message displayed to the user when the device has no network connectivity to download video. [CHAR LIMIT=NONE] -->
-    <string name="no_network_connectivity">No network connectivity to download video</string>
+    <!-- Message displayed to let the user know that the screen needs to be touched to start a new demo session. [CHAR LIMIT=NONE] -->
+    <string name="touch_to_continue">Touch the screen to continue</string>
 
 </resources>
