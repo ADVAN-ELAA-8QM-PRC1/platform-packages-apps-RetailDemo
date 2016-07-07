@@ -16,7 +16,6 @@
 
 package com.android.retaildemo;
 
-import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
@@ -60,7 +59,7 @@ class DownloadVideoTask {
     private Handler mHandler;
 
     private ProgressDialog mProgressDialog;
-    private AlertDialog mErrorMsgDialog;
+    private DownloadResultReceiver mDownloadReceiver;
     private NetworkChangeReceiver mNetworkChangeReceiver;
     private String mDownloadUrl;
     private long mVideoDownloadId;
@@ -77,6 +76,7 @@ class DownloadVideoTask {
     }
 
     public void run() {
+        mDownloadReceiver = new DownloadResultReceiver();
         mContext.registerReceiver(mDownloadReceiver,
                 new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
 
@@ -92,8 +92,7 @@ class DownloadVideoTask {
             mHandler.sendMessage(mHandler.obtainMessage(MSG_CHECK_FOR_UPDATE));
         } else {
             if (!isConnectedToNetwork()) {
-                mErrorMsgDialog = createErrorMsgDialog(R.string.no_network_connectivity);
-                mErrorMsgDialog.show();
+                mListener.onError();
                 mNetworkChangeReceiver = new NetworkChangeReceiver();
                 mContext.registerReceiver(mNetworkChangeReceiver,
                         new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
@@ -117,7 +116,7 @@ class DownloadVideoTask {
         return request;
     }
 
-    private final BroadcastReceiver mDownloadReceiver = new BroadcastReceiver() {
+    private class DownloadResultReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (!DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(intent.getAction())) {
@@ -206,9 +205,13 @@ class DownloadVideoTask {
             if (cursor != null & cursor.moveToFirst()) {
                 final int columnIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
                 if (cursor.getInt(columnIndex) == DownloadManager.STATUS_SUCCESSFUL) {
-                    mContext.unregisterReceiver(mDownloadReceiver);
+                    if (mDownloadReceiver != null) {
+                        mContext.unregisterReceiver(mDownloadReceiver);
+                        mDownloadReceiver = null;
+                    }
                     if (mNetworkChangeReceiver != null) {
                         mContext.unregisterReceiver(mNetworkChangeReceiver);
+                        mNetworkChangeReceiver = null;
                     }
                     final String fileUri = cursor.getString(
                             cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI));
@@ -236,7 +239,6 @@ class DownloadVideoTask {
                 if (mDownloadFile.exists()) {
                     mHandler.sendMessage(mHandler.obtainMessage(MSG_CHECK_FOR_UPDATE));
                 } else {
-                    mErrorMsgDialog.dismiss();
                     startDownload();
                 }
             }
@@ -259,13 +261,6 @@ class DownloadVideoTask {
         return info != null && info.isConnected();
     }
 
-    private AlertDialog createErrorMsgDialog(int msgResId) {
-        return new AlertDialog.Builder(mContext)
-                .setMessage(msgResId)
-                .setCancelable(false)
-                .create();
-    }
-
     private String getFileBaseName(String fileName) {
         final int pos = fileName.lastIndexOf(".");
         return pos > 0 ? fileName.substring(0, pos) : fileName;
@@ -273,5 +268,6 @@ class DownloadVideoTask {
 
     interface ResultListener {
         void onFileDownloaded(String downloadedFilePath);
+        void onError();
     }
 }
