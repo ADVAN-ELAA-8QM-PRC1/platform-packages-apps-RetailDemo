@@ -20,10 +20,10 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.os.UserManager;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -34,11 +34,12 @@ import android.widget.VideoView;
 import java.io.File;
 
 /**
- * This is the prototyping activity for playing the retail demo video. This will also try to keep
+ * This is the activity for playing the retail demo video. This will also try to keep
  * the screen on.
  *
- * Note: this activity checks for the file retail_video.mp4 in the path specified by the system
- * property "ro.retaildemo.video_path". To run this, push your test video to that path.
+ * This will check for the demo video in {@link Environment#getDataPreloadsDemoDirectory()} or
+ * {@link Context#getObbDir()}. If the demo video is not present, it will run a task to download it
+ * from the specified url.
  */
 public class DemoPlayer extends Activity implements DownloadVideoTask.ResultListener {
 
@@ -46,8 +47,16 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     private static final boolean DEBUG = false;
 
     private static final String VIDEO_FILE_NAME = "retail_demo.mp4";
-    private static final String PRELOADED_VIDEO_FILE = Environment.getDataPreloadsDemoDirectory()
+    static final String PRELOADED_VIDEO_FILE = Environment.getDataPreloadsDemoDirectory()
             + File.separator + VIDEO_FILE_NAME;
+
+    /**
+     * We save the real elapsed time to serve as an indication for downloading the demo video
+     * for the next device boot. The device could boot fast at times and could result in
+     * skipping the download during the next boot sessions. To be safe from cases like this, we
+     * add this offset to the real elapsed time.
+     */
+    private static final long REAL_ELAPSED_TIME_OFFSET_MS = 60 * 1000; // 1 min
 
     private PowerManager mPowerManager;
 
@@ -97,13 +106,34 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     }
 
     private void loadVideo() {
-        // If the video is preloaded, then use that. Otherwise download it from the specified url.
-        if (new File(PRELOADED_VIDEO_FILE).exists()) {
+        // If the video is already downloaded, then use that and check for an update.
+        // Otherwise check if the video is preloaded, if not download the video from the
+        // specified url.
+        if (new File(mDownloadPath).exists()) {
+            if (DEBUG) Log.d(TAG, "Using the already existing video at " + mDownloadPath);
+            setVideoPath(mDownloadPath);
+        } else if (new File(PRELOADED_VIDEO_FILE).exists()) {
             if (DEBUG) Log.d(TAG, "Using the preloaded video at " + PRELOADED_VIDEO_FILE);
             setVideoPath(PRELOADED_VIDEO_FILE);
-        } else {
-            new DownloadVideoTask(this, mDownloadPath, this).run();
         }
+        if (!checkIfDownloadingAllowed()) {
+            if (DEBUG) Log.d(TAG, "Downloading not allowed, neither starting download nor checking"
+                    + " for an update.");
+            return;
+        }
+        new DownloadVideoTask(this, mDownloadPath, this).run();
+    }
+
+    private boolean checkIfDownloadingAllowed() {
+        final long lastRealElapsedTime = DataReaderWriter.getElapsedRealTime(this);
+        final long realElapsedTime = SystemClock.elapsedRealtime();
+        // We need to download the video atmost once after every boot.
+        if (lastRealElapsedTime == 0 || realElapsedTime < lastRealElapsedTime) {
+            DataReaderWriter.setElapsedRealTime(this,
+                    realElapsedTime + REAL_ELAPSED_TIME_OFFSET_MS);
+            return true;
+        }
+        return false;
     }
 
     @Override
