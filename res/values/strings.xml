@@ -25,6 +25,6 @@
     <string name="downloading_video_msg">Downloading video\u2026</string>
 
     <!-- Message displayed to let the user know that the screen needs to be touched to start a new demo session. [CHAR LIMIT=NONE] -->
-    <string name="touch_to_continue">Touch the screen to continue</string>
+    <string name="touch_to_continue">Tap to continue</string>
 
 </resources>
