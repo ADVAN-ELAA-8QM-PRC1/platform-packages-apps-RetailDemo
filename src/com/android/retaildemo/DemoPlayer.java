@@ -74,16 +74,6 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
                 | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
-        // Make view full screen
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.STATUS_BAR_DISABLE_BACK
-        );
         setContentView(R.layout.retail_video);
 
         mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
@@ -228,6 +218,17 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     @Override
     public void onResume() {
         super.onResume();
+        // Make view fullscreen.
+        // And since flags SYSTEM_UI_FLAG_HIDE_NAVIGATION and SYSTEM_UI_FLAG_HIDE_NAVIGATION might
+        // get cleared on user interaction, we do this here instead of onCreate.
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.STATUS_BAR_DISABLE_BACK);
         // Resume video playing
         if (mVideoView != null) {
             mVideoView.resume();
@@ -258,7 +259,7 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
         final PowerManager.WakeLock wakeLock = mPowerManager.newWakeLock(
                 PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, TAG);
         wakeLock.acquire();
-        // Device waken up, release the wake-lock
+        // Device woken up, release the wake-lock
         wakeLock.release();
     }
 }
