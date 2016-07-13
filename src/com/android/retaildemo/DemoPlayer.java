@@ -62,7 +62,6 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     private PowerManager mPowerManager;
 
     private VideoView mVideoView;
-    private int mVideoPosition;
     private String mDownloadPath;
 
     @Override
@@ -96,10 +95,6 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
             public void onPrepared(MediaPlayer mediaPlayer) {
                 mediaPlayer.setLooping(true);
                 mVideoView.start();
-                // if we pause before screen off, try to resume
-                if (mVideoPosition > 0) {
-                    mVideoView.seekTo(mVideoPosition);
-                }
             }
         });
 
@@ -201,9 +196,7 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
 
     @Override
     public void onPause() {
-        // Save video position
         if (mVideoView != null) {
-            mVideoPosition = mVideoView.getCurrentPosition();
             mVideoView.pause();
         }
         // If power key is pressed to turn screen off, turn screen back on
@@ -218,17 +211,8 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
         super.onResume();
         // Resume video playing
         if (mVideoView != null) {
-            mVideoView.resume();
+            mVideoView.start();
         }
-    }
-
-    @Override
-    protected void onStop() {
-        // Stop video
-        if (mVideoView != null) {
-            mVideoView.stopPlayback();
-        }
-        super.onStop();
     }
 
     private void setVideoPath(String videoPath) {
