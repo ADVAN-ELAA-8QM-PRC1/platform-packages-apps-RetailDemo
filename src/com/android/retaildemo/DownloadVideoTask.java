@@ -32,6 +32,7 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+import android.view.ContextThemeWrapper;
 
 import java.io.File;
 import java.io.IOException;
@@ -69,6 +70,7 @@ class DownloadVideoTask {
     private long mVideoDownloadId;
     private long mVideoUpdateDownloadId;
     private String mDownloadedPath;
+    private boolean mVideoAlreadySet;
 
     public DownloadVideoTask(Context context, String downloadPath, ResultListener listener) {
         mContext = context;
@@ -90,8 +92,10 @@ class DownloadVideoTask {
         thread.start();
         mHandler = new ThreadHandler(thread.getLooper());
 
+        mVideoAlreadySet =
+                mDownloadFile.exists() || new File(DemoPlayer.PRELOADED_VIDEO_FILE).exists();
         // If file already exists, no need to download it again.
-        if (mDownloadFile.exists() || new File(DemoPlayer.PRELOADED_VIDEO_FILE).exists()) {
+        if (mVideoAlreadySet) {
             if (DEBUG) Log.d(TAG, "Video already exists at either " + mDownloadFile.getPath()
                     + " or " + DemoPlayer.PRELOADED_VIDEO_FILE + ", checking for an update... ");
             mHandler.sendMessage(mHandler.obtainMessage(MSG_CHECK_FOR_UPDATE));
@@ -243,7 +247,7 @@ class DownloadVideoTask {
         public void onReceive(Context context, Intent intent) {
             if (ConnectivityManager.CONNECTIVITY_ACTION.equals(intent.getAction())
                     && isConnectedToNetwork()) {
-                if (mDownloadFile.exists()) {
+                if (mVideoAlreadySet) {
                     mHandler.sendMessage(mHandler.obtainMessage(MSG_CHECK_FOR_UPDATE));
                 } else {
                     startDownload();
@@ -262,7 +266,8 @@ class DownloadVideoTask {
     }
 
     private void showProgressDialog() {
-        mProgressDialog = new ProgressDialog(mContext);
+        mProgressDialog = new ProgressDialog(
+                new ContextThemeWrapper(mContext, android.R.style.Theme_Material_Light_Dialog));
         mProgressDialog.setMessage(mContext.getString(R.string.downloading_video_msg));
         mProgressDialog.setIndeterminate(false);
         mProgressDialog.setCancelable(false);
