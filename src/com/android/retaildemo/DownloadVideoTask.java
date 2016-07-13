@@ -26,6 +26,7 @@ import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
@@ -44,6 +45,9 @@ import java.net.URL;
 class DownloadVideoTask {
     private static final String TAG = "DownloadVideoTask";
     private static final boolean DEBUG = false;
+
+    private static final String URL_PARAMETER_PRODUCT = "product";
+    private static final String URL_PARAMETER_DEVICE = "device";
 
     private static final int MSG_CHECK_FOR_UPDATE = 1;
     private static final int MSG_DOWNLOAD_COMPLETE = 2;
@@ -73,6 +77,7 @@ class DownloadVideoTask {
 
         mDlm = (DownloadManager) mContext.getSystemService(Context.DOWNLOAD_SERVICE);
         mDownloadUrl = mContext.getString(R.string.retail_demo_video_download_url);
+        appendProductDeviceParamsToUrl();
     }
 
     public void run() {
@@ -105,7 +110,8 @@ class DownloadVideoTask {
     private void startDownload() {
         final DownloadManager.Request request = createDownloadRequest();
         mVideoDownloadId = mDlm.enqueue(request);
-        if (DEBUG) Log.d(TAG, "Started downloading the video at " + mDownloadFile.getPath());
+        if (DEBUG) Log.d(TAG, "Started downloading the video at " + mDownloadUrl
+                + " to " + mDownloadFile.getPath());
         showProgressDialog();
     }
 
@@ -160,7 +166,8 @@ class DownloadVideoTask {
                         }
                         final DownloadManager.Request request = createDownloadRequest();
                         mVideoUpdateDownloadId = mDlm.enqueue(request);
-                        if (DEBUG) Log.d(TAG, "Started downloading the updated video");
+                        if (DEBUG) Log.d(TAG, "Started downloading the updated video at "
+                                + mDownloadUrl);
                     } catch (IOException e) {
                         Log.e(TAG, "Error while checking for an updated video", e);
                     } finally {
@@ -244,6 +251,15 @@ class DownloadVideoTask {
             }
         }
     };
+
+    private void appendProductDeviceParamsToUrl() {
+        mDownloadUrl = Uri.parse(mDownloadUrl)
+                .buildUpon()
+                .appendQueryParameter(URL_PARAMETER_PRODUCT, Build.PRODUCT)
+                .appendQueryParameter(URL_PARAMETER_DEVICE, Build.DEVICE)
+                .build()
+                .toString();
+    }
 
     private void showProgressDialog() {
         mProgressDialog = new ProgressDialog(mContext);
