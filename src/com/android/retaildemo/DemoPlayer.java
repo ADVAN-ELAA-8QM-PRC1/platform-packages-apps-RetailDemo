@@ -64,6 +64,7 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     private VideoView mVideoView;
     private int mVideoPosition;
     private String mDownloadPath;
+    private boolean mUsingDownloadedVideo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,7 +107,17 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
         mVideoView.setOnErrorListener(new MediaPlayer.OnErrorListener() {
             @Override
             public boolean onError(MediaPlayer mp, int what, int extra) {
-                displayFallbackView();
+                if (mUsingDownloadedVideo && new File(PRELOADED_VIDEO_FILE).exists()) {
+                    if (DEBUG) Log.d(TAG, "Error using the downloaded video, "
+                            + "falling back to the preloaded video at " + PRELOADED_VIDEO_FILE);
+                    mUsingDownloadedVideo = false;
+                    setVideoPath(PRELOADED_VIDEO_FILE);
+                    // And delete the downloaded video so that we don't try to use it
+                    // again next time.
+                    new File(mDownloadPath).delete();
+                } else {
+                    displayFallbackView();
+                }
                 return true;
             }
         });
@@ -173,6 +184,7 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
 
     @Override
     public void onFileDownloaded(final String filePath) {
+        mUsingDownloadedVideo = true;
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
