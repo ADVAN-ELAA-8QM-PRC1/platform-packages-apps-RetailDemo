@@ -17,8 +17,11 @@
 package com.android.retaildemo;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Environment;
@@ -193,6 +196,26 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     }
 
     private void disableSelf() {
+        final String componentName = getString(R.string.demo_overlay_app_component);
+        if (!TextUtils.isEmpty(componentName)) {
+            ComponentName component = ComponentName.unflattenFromString(componentName);
+            if (component != null) {
+                Intent intent = new Intent();
+                intent.setComponent(component);
+                ResolveInfo resolveInfo = getPackageManager().resolveService(intent, 0);
+                if (resolveInfo != null) {
+                    startService(intent);
+                } else {
+                    resolveInfo = getPackageManager().resolveActivity(intent,
+                            PackageManager.MATCH_DEFAULT_ONLY);
+                    if (resolveInfo != null) {
+                        startActivity(intent);
+                    } else {
+                        Log.w(TAG, "Component " + componentName + " cannot be resolved");
+                    }
+                }
+            }
+        }
         getPackageManager().setComponentEnabledSetting(getComponentName(),
                 PackageManager.COMPONENT_ENABLED_STATE_DISABLED, 0);
     }

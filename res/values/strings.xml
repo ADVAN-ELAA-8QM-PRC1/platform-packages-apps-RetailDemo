@@ -21,6 +21,9 @@
     <!-- URL where the retail demo video can be downloaded from. [DO NOT TRANSLATE] -->
     <string name="retail_demo_video_download_url" translatable="false"></string>
 
+    <!-- The component name for the demo overlay app. [DO NOT TRANSLATE] -->
+    <string name="demo_overlay_app_component" translatable="false"></string>
+
     <!-- Message displayed to the user when downloading the video. [CHAR LIMIT=NONE] -->
     <string name="downloading_video_msg">Downloading video\u2026</string>
 
