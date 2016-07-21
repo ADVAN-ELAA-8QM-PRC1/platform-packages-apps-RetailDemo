@@ -32,11 +32,16 @@
                 android:layout_marginBottom="@dimen/fallback_view_text_margin_bottom" />
     </FrameLayout>
 
-    <VideoView
-            android:id="@+id/video_content"
+    <FrameLayout android:id="@+id/video_layout"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_gravity="center"
-            android:keepScreenOn="true" />
+            android:keepScreenOn="true"
+            android:background="@android:color/black">
+        <VideoView
+                android:id="@+id/video_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center" />
+    </FrameLayout>
 
 </merge>

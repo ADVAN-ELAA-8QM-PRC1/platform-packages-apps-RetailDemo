@@ -113,11 +113,12 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     private void displayFallbackView() {
         if (DEBUG) Log.d(TAG, "Showing the fallback view");
         findViewById(R.id.fallback_layout).setVisibility(View.VISIBLE);
-        mVideoView.setVisibility(View.GONE);
+        findViewById(R.id.video_layout).setVisibility(View.GONE);
     }
 
     private void displayVideoView() {
-        mVideoView.setVisibility(View.VISIBLE);
+        if (DEBUG) Log.d(TAG, "Showing the video view");
+        findViewById(R.id.video_layout).setVisibility(View.VISIBLE);
         findViewById(R.id.fallback_layout).setVisibility(View.GONE);
     }
 
