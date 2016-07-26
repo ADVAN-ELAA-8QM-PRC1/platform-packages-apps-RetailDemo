@@ -37,7 +37,7 @@ class DataReaderWriter {
         FileOutputStream fileOutputStream = null;
         DataOutputStream out = null;
         try {
-            final String filePath = context.getObbDir() + File.separator + FILE_NAME;
+            final String filePath = getFilePath(context);
             final File file = new File(filePath);
             if (!file.exists()) {
                 file.createNewFile();
@@ -56,7 +56,7 @@ class DataReaderWriter {
 
     public static long getElapsedRealTime(Context context) {
         long elapsedRealTime = 0;
-        final String filePath = context.getObbDir() + File.separator + FILE_NAME;
+        final String filePath = getFilePath(context);
         if (!new File(filePath).exists()) {
             return elapsedRealTime;
         }
@@ -74,5 +74,9 @@ class DataReaderWriter {
             IoUtils.closeQuietly(fileInputStream);
         }
         return elapsedRealTime;
+    }
+
+    public static String getFilePath(Context context) {
+        return context.getObbDir() + File.separator + FILE_NAME;
     }
 }

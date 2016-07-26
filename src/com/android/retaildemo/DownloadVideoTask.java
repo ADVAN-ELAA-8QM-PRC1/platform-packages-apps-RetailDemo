@@ -30,6 +30,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
+import android.support.annotation.VisibleForTesting;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
 
@@ -46,12 +47,13 @@ class DownloadVideoTask {
     private static final String TAG = "DownloadVideoTask";
     private static final boolean DEBUG = false;
 
-    private static final int MSG_CHECK_FOR_UPDATE = 1;
-    private static final int MSG_DOWNLOAD_COMPLETE = 2;
-    private static final int MSG_CLEANUP_DOWNLOAD_DIR = 3;
+    static final int MSG_CHECK_FOR_UPDATE = 1;
+    static final int MSG_DOWNLOAD_COMPLETE = 2;
+    static final int MSG_CLEANUP_DOWNLOAD_DIR = 3;
 
     private static final int CLEANUP_DELAY_MILLIS = 2 * 1000; // 2 seconds
 
+    private final Injector mInjector;
     private final Context mContext;
     private final DownloadManager mDlm;
     private final File mDownloadFile;
@@ -71,12 +73,19 @@ class DownloadVideoTask {
 
     public DownloadVideoTask(Context context, String downloadPath, File preloadVideoFile,
             ResultListener listener) {
+        this(context, downloadPath, preloadVideoFile, listener, new Injector(context));
+    }
+
+    @VisibleForTesting
+    DownloadVideoTask(Context context, String downloadPath, File preloadVideoFile,
+            ResultListener listener, Injector injector) {
+        mInjector = injector;
         mContext = context;
         mDownloadFile = new File(downloadPath);
         mListener = listener;
         mPreloadVideoFile = preloadVideoFile;
-        mDlm = (DownloadManager) mContext.getSystemService(Context.DOWNLOAD_SERVICE);
-        mDownloadUrl = mContext.getString(R.string.retail_demo_video_download_url);
+        mDlm = injector.getDownloadManager();
+        mDownloadUrl = injector.getDownloadUrl();
     }
 
     public void run() {
@@ -84,10 +93,7 @@ class DownloadVideoTask {
         mContext.registerReceiver(mDownloadReceiver,
                 new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
 
-        // Initialize handler
-        HandlerThread thread = new HandlerThread(TAG);
-        thread.start();
-        mHandler = new ThreadHandler(thread.getLooper());
+        mHandler = mInjector.getHandler(this);
 
         mVideoAlreadySet =
                 mDownloadFile.exists() || mPreloadVideoFile.exists();
@@ -132,7 +138,7 @@ class DownloadVideoTask {
 
             final long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0);
             if (id == mVideoDownloadId) {
-                if (checkDownloadsAndSetVideo(id)) {
+                if (checkDownloadsAndSetVideo(id) && mProgressDialog != null) {
                     mProgressDialog.dismiss();
                 }
             } else if (id == mVideoUpdateDownloadId) {
@@ -141,7 +147,7 @@ class DownloadVideoTask {
         }
     };
 
-    private final class ThreadHandler extends Handler {
+    final class ThreadHandler extends Handler {
         public ThreadHandler(Looper looper) {
             super(looper);
         }
@@ -158,7 +164,7 @@ class DownloadVideoTask {
                     }
                     HttpURLConnection conn = null;
                     try {
-                        conn = (HttpURLConnection) new URL(mDownloadUrl).openConnection();
+                        conn = mInjector.openConnection(mDownloadUrl);
                         final long lastModified = mDownloadFile.lastModified();
                         conn.setIfModifiedSince(lastModified);
                         conn.connect();
@@ -254,18 +260,12 @@ class DownloadVideoTask {
     };
 
     private void showProgressDialog() {
-        mProgressDialog = new ProgressDialog(
-                new ContextThemeWrapper(mContext, android.R.style.Theme_Material_Light_Dialog));
-        mProgressDialog.setMessage(mContext.getString(R.string.downloading_video_msg));
-        mProgressDialog.setIndeterminate(false);
-        mProgressDialog.setCancelable(false);
-        mProgressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+        mProgressDialog = mInjector.getProgressDialog();
         mProgressDialog.show();
     }
 
     private boolean isConnectedToNetwork() {
-        ConnectivityManager cm = (ConnectivityManager) mContext.getSystemService(
-                Context.CONNECTIVITY_SERVICE);
+        ConnectivityManager cm = mInjector.getConnectivityManager();
         NetworkInfo info = cm.getActiveNetworkInfo();
         return info != null && info.isConnected();
     }
@@ -278,5 +278,51 @@ class DownloadVideoTask {
     interface ResultListener {
         void onFileDownloaded(String downloadedFilePath);
         void onError();
+    }
+
+    /**
+     * Unit test will subclass this to inject mocks.
+     */
+    @VisibleForTesting
+    static class Injector {
+        private final Context mContext;
+
+        Injector(Context context) {
+            mContext = context;
+        }
+
+        DownloadManager getDownloadManager() {
+            return (DownloadManager) mContext.getSystemService(Context.DOWNLOAD_SERVICE);
+        }
+
+        String getDownloadUrl() {
+            return mContext.getString(R.string.retail_demo_video_download_url);
+        }
+
+        ConnectivityManager getConnectivityManager() {
+            return (ConnectivityManager) mContext.getSystemService(
+                    Context.CONNECTIVITY_SERVICE);
+        }
+
+        Handler getHandler(DownloadVideoTask task) {
+            // Initialize handler
+            HandlerThread thread = new HandlerThread(TAG);
+            thread.start();
+            return task.new ThreadHandler(thread.getLooper());
+        }
+
+        ProgressDialog getProgressDialog() {
+            final ProgressDialog dialog = new ProgressDialog(
+                    new ContextThemeWrapper(mContext, android.R.style.Theme_Material_Light_Dialog));
+            dialog.setMessage(mContext.getString(R.string.downloading_video_msg));
+            dialog.setIndeterminate(false);
+            dialog.setCancelable(false);
+            dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            return dialog;
+        }
+
+        HttpURLConnection openConnection(String downloadUri) throws IOException {
+            return (HttpURLConnection) new URL(downloadUri).openConnection();
+        }
     }
 }
