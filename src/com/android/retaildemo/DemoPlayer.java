@@ -18,16 +18,21 @@ package com.android.retaildemo;
 
 import android.app.Activity;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.database.ContentObserver;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.os.UserManager;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -62,11 +67,20 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
      */
     private static final long REAL_ELAPSED_TIME_OFFSET_MS = 60 * 1000; // 1 min
 
+    /**
+     * Maximum amount of time to wait for demo user to set up.
+     * After it the user can tap the screen to exit
+     */
+    private static final long READY_TO_TAP_MAX_DELAY_MS = 60 * 1000; // 1 min
+
     private PowerManager mPowerManager;
 
     private VideoView mVideoView;
     private String mDownloadPath;
     private boolean mUsingDownloadedVideo;
+    private Handler mHandler;
+    private boolean mReadyToTap;
+    private SettingsObserver mSettingsObserver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +93,7 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
         setContentView(R.layout.retail_video);
 
         mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
-
+        mHandler = new Handler();
         mDownloadPath = getObbDir().getPath() + File.separator + VIDEO_FILE_NAME;
         mVideoView = (VideoView) findViewById(R.id.video_content);
 
@@ -109,6 +123,17 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
                 return true;
             }
         });
+
+        mReadyToTap = isUserSetupComplete();
+        if (!mReadyToTap) {
+            // Wait for setup to finish
+            mSettingsObserver = new SettingsObserver();
+            mSettingsObserver.register();
+            // Allow user to exit the demo player if setup takes too long
+            mHandler.postDelayed(() -> {
+                mReadyToTap = true;
+            }, READY_TO_TAP_MAX_DELAY_MS);
+        }
 
         loadVideo();
     }
@@ -189,7 +214,7 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (getSystemService(UserManager.class).isDemoUser()) {
+        if (mReadyToTap && getSystemService(UserManager.class).isDemoUser()) {
             disableSelf();
         }
         return true;
@@ -242,6 +267,15 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     }
 
     @Override
+    protected void onDestroy() {
+        if (mSettingsObserver != null) {
+            mSettingsObserver.unregister();
+            mSettingsObserver = null;
+        }
+        super.onDestroy();
+    }
+
+    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         if (hasFocus) {
             // Make view fullscreen.
@@ -275,5 +309,35 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
         wakeLock.acquire();
         // Device woken up, release the wake-lock
         wakeLock.release();
+    }
+
+    private class SettingsObserver extends ContentObserver {
+        private final Uri mDemoModeSetupComplete = Settings.Secure.getUriFor(
+                Settings.Secure.DEMO_USER_SETUP_COMPLETE);
+
+        SettingsObserver() {
+            super(mHandler);
+        }
+
+        void register() {
+            ContentResolver cr = getContentResolver();
+            cr.registerContentObserver(mDemoModeSetupComplete, false, this);
+        }
+
+        void unregister() {
+            getContentResolver().unregisterContentObserver(this);
+        }
+
+        @Override
+        public void onChange(boolean selfChange, Uri uri) {
+            if (mDemoModeSetupComplete.equals(uri)) {
+                mReadyToTap = true;
+            }
+        }
+    }
+
+    private boolean isUserSetupComplete() {
+        return "1".equals(Settings.Secure.getString(getContentResolver(),
+                Settings.Secure.DEMO_USER_SETUP_COMPLETE));
     }
 }
