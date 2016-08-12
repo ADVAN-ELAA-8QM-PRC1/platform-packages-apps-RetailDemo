@@ -26,7 +26,6 @@ import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
@@ -46,9 +45,6 @@ import java.net.URL;
 class DownloadVideoTask {
     private static final String TAG = "DownloadVideoTask";
     private static final boolean DEBUG = false;
-
-    private static final String URL_PARAMETER_PRODUCT = "product";
-    private static final String URL_PARAMETER_DEVICE = "device";
 
     private static final int MSG_CHECK_FOR_UPDATE = 1;
     private static final int MSG_DOWNLOAD_COMPLETE = 2;
@@ -79,7 +75,6 @@ class DownloadVideoTask {
 
         mDlm = (DownloadManager) mContext.getSystemService(Context.DOWNLOAD_SERVICE);
         mDownloadUrl = mContext.getString(R.string.retail_demo_video_download_url);
-        appendProductDeviceParamsToUrl();
     }
 
     public void run() {
@@ -220,10 +215,6 @@ class DownloadVideoTask {
                         mContext.unregisterReceiver(mDownloadReceiver);
                         mDownloadReceiver = null;
                     }
-                    if (mNetworkChangeReceiver != null) {
-                        mContext.unregisterReceiver(mNetworkChangeReceiver);
-                        mNetworkChangeReceiver = null;
-                    }
                     final String fileUri = cursor.getString(
                             cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI));
                     mDownloadedPath = Uri.parse(fileUri).getPath();
@@ -237,6 +228,10 @@ class DownloadVideoTask {
         } finally {
             if (cursor != null) {
                 cursor.close();
+            }
+            if (mNetworkChangeReceiver != null) {
+                mContext.unregisterReceiver(mNetworkChangeReceiver);
+                mNetworkChangeReceiver = null;
             }
         }
         return false;
@@ -255,15 +250,6 @@ class DownloadVideoTask {
             }
         }
     };
-
-    private void appendProductDeviceParamsToUrl() {
-        mDownloadUrl = Uri.parse(mDownloadUrl)
-                .buildUpon()
-                .appendQueryParameter(URL_PARAMETER_PRODUCT, Build.PRODUCT)
-                .appendQueryParameter(URL_PARAMETER_DEVICE, Build.DEVICE)
-                .build()
-                .toString();
-    }
 
     private void showProgressDialog() {
         mProgressDialog = new ProgressDialog(
