@@ -18,8 +18,11 @@
     <!-- Title of the application. Used as a fallback for TalkBack when activity label is not specified (an accessibility service). [CHAR LIMIT=NONE] -->
     <string name="retail_demo_title">Retail demo</string>
 
+    <!-- File name of the demo video in the preloads/demo folder. [DO NOT TRANSLATE] -->
+    <string name="retail_demo_video_file_name">retail_demo.mp4</string>
+
     <!-- URL where the retail demo video can be downloaded from. [DO NOT TRANSLATE] -->
-    <string name="retail_demo_video_download_url" translatable="false"></string>
+    <string name="retail_demo_video_download_url"></string>
 
     <!-- The component name for the demo overlay app. [DO NOT TRANSLATE] -->
     <string name="demo_overlay_app_component" translatable="false"></string>
