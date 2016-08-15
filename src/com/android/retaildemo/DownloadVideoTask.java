@@ -67,12 +67,14 @@ class DownloadVideoTask {
     private long mVideoUpdateDownloadId;
     private String mDownloadedPath;
     private boolean mVideoAlreadySet;
+    private File mPreloadVideoFile;
 
-    public DownloadVideoTask(Context context, String downloadPath, ResultListener listener) {
+    public DownloadVideoTask(Context context, String downloadPath, File preloadVideoFile,
+            ResultListener listener) {
         mContext = context;
         mDownloadFile = new File(downloadPath);
         mListener = listener;
-
+        mPreloadVideoFile = preloadVideoFile;
         mDlm = (DownloadManager) mContext.getSystemService(Context.DOWNLOAD_SERVICE);
         mDownloadUrl = mContext.getString(R.string.retail_demo_video_download_url);
     }
@@ -88,11 +90,11 @@ class DownloadVideoTask {
         mHandler = new ThreadHandler(thread.getLooper());
 
         mVideoAlreadySet =
-                mDownloadFile.exists() || new File(DemoPlayer.PRELOADED_VIDEO_FILE).exists();
+                mDownloadFile.exists() || mPreloadVideoFile.exists();
         // If file already exists, no need to download it again.
         if (mVideoAlreadySet) {
             if (DEBUG) Log.d(TAG, "Video already exists at either " + mDownloadFile.getPath()
-                    + " or " + DemoPlayer.PRELOADED_VIDEO_FILE + ", checking for an update... ");
+                    + " or " + mPreloadVideoFile + ", checking for an update... ");
             mHandler.sendMessage(mHandler.obtainMessage(MSG_CHECK_FOR_UPDATE));
         } else {
             if (!isConnectedToNetwork()) {
