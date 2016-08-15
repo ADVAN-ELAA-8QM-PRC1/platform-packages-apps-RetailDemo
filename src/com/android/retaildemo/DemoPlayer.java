@@ -55,10 +55,6 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     private static final String TAG = "DemoPlayer";
     private static final boolean DEBUG = false;
 
-    private static final String VIDEO_FILE_NAME = "retail_demo.mp4";
-    static final String PRELOADED_VIDEO_FILE = Environment.getDataPreloadsDemoDirectory()
-            + File.separator + VIDEO_FILE_NAME;
-
     /**
      * We save the real elapsed time to serve as an indication for downloading the demo video
      * for the next device boot. The device could boot fast at times and could result in
@@ -81,6 +77,7 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     private Handler mHandler;
     private boolean mReadyToTap;
     private SettingsObserver mSettingsObserver;
+    private File mPreloadedVideoFile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,7 +91,10 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
 
         mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         mHandler = new Handler();
-        mDownloadPath = getObbDir().getPath() + File.separator + VIDEO_FILE_NAME;
+        final String preloadedFileName = getString(R.string.retail_demo_video_file_name);
+        mPreloadedVideoFile = new File(Environment.getDataPreloadsDemoDirectory(),
+                preloadedFileName);
+        mDownloadPath = getObbDir().getPath() + File.separator + preloadedFileName;
         mVideoView = (VideoView) findViewById(R.id.video_content);
 
         // Start playing the video when it is ready
@@ -109,11 +109,11 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
         mVideoView.setOnErrorListener(new MediaPlayer.OnErrorListener() {
             @Override
             public boolean onError(MediaPlayer mp, int what, int extra) {
-                if (mUsingDownloadedVideo && new File(PRELOADED_VIDEO_FILE).exists()) {
+                if (mUsingDownloadedVideo && mPreloadedVideoFile.exists()) {
                     if (DEBUG) Log.d(TAG, "Error using the downloaded video, "
-                            + "falling back to the preloaded video at " + PRELOADED_VIDEO_FILE);
+                            + "falling back to the preloaded video at " + mPreloadedVideoFile);
                     mUsingDownloadedVideo = false;
-                    setVideoPath(PRELOADED_VIDEO_FILE);
+                    setVideoPath(mPreloadedVideoFile.getPath());
                     // And delete the downloaded video so that we don't try to use it
                     // again next time.
                     new File(mDownloadPath).delete();
@@ -159,9 +159,9 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
             if (DEBUG) Log.d(TAG, "Using the already existing video at " + mDownloadPath);
             setVideoPath(mDownloadPath);
             isVideoSet = true;
-        } else if (new File(PRELOADED_VIDEO_FILE).exists()) {
-            if (DEBUG) Log.d(TAG, "Using the preloaded video at " + PRELOADED_VIDEO_FILE);
-            setVideoPath(PRELOADED_VIDEO_FILE);
+        } else if (mPreloadedVideoFile.exists()) {
+            if (DEBUG) Log.d(TAG, "Using the preloaded video at " + mPreloadedVideoFile);
+            setVideoPath(mPreloadedVideoFile.getPath());
             isVideoSet = true;
         }
 
@@ -181,7 +181,7 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
             }
             return;
         }
-        new DownloadVideoTask(this, mDownloadPath, this).run();
+        new DownloadVideoTask(this, mDownloadPath, mPreloadedVideoFile, this).run();
     }
 
     private boolean checkIfDownloadingAllowed() {
