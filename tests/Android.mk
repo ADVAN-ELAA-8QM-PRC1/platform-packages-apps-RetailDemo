@@ -25,7 +25,7 @@ LOCAL_SRC_FILES := $(call all-java-files-under, src)
 
 LOCAL_PACKAGE_NAME := RetailDemoTests
 
-LOCAL_STATIC_JAVA_LIBRARIES := android-support-test mockito-target
+LOCAL_STATIC_JAVA_LIBRARIES := android-support-test mockito-target-minus-junit4
 
 LOCAL_INSTRUMENTATION_FOR := RetailDemo
 
