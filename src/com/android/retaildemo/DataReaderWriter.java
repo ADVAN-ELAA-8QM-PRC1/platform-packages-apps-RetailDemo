@@ -17,6 +17,7 @@
 package com.android.retaildemo;
 
 import android.content.Context;
+import android.support.annotation.VisibleForTesting;
 import android.util.Log;
 import libcore.io.IoUtils;
 
@@ -33,7 +34,7 @@ class DataReaderWriter {
 
     private static final String FILE_NAME = "last_download_info.txt";
 
-    public static void setElapsedRealTime(Context context, long elapsedRealTime) {
+    public static void writeLastBootCount(Context context, int bootCount) {
         FileOutputStream fileOutputStream = null;
         DataOutputStream out = null;
         try {
@@ -44,39 +45,46 @@ class DataReaderWriter {
             }
             fileOutputStream = new FileOutputStream(filePath);
             out = new DataOutputStream(fileOutputStream);
-            if (DEBUG) Log.d(TAG, "Writing value elapsedRealTime=" + elapsedRealTime);
-            out.writeLong(elapsedRealTime);
+            if (DEBUG) Log.d(TAG, "Writing value bootCount=" + bootCount);
+            out.writeInt(bootCount);
         } catch (IOException e) {
-            Log.e(TAG, "Error writing elapsedRealTime=" + elapsedRealTime + " to file", e);
+            Log.e(TAG, "Error writing bootCount=" + bootCount + " to file", e);
         } finally {
             IoUtils.closeQuietly(out);
             IoUtils.closeQuietly(fileOutputStream);
         }
     }
 
-    public static long getElapsedRealTime(Context context) {
-        long elapsedRealTime = 0;
+    /**
+     * @return 0 if reading the value for the first time,
+     *         -1 if there is an error reading the saved count,
+     *         last saved boot count otherwise.
+     */
+    public static int readLastBootCount(Context context) {
+        int bootCount = 0;
         final String filePath = getFilePath(context);
         if (!new File(filePath).exists()) {
-            return elapsedRealTime;
+            return bootCount;
         }
         FileInputStream fileInputStream = null;
         DataInputStream in = null;
         try {
             fileInputStream = new FileInputStream(filePath);
             in = new DataInputStream(fileInputStream);
-            elapsedRealTime = in.readLong();
-            if (DEBUG) Log.d(TAG, "Read value elapsedRealTime=" + elapsedRealTime);
+            bootCount = in.readInt();
+            if (DEBUG) Log.d(TAG, "Read value bootCount=" + bootCount);
         } catch (IOException e) {
-            Log.e(TAG, "Error reading elapsedRealTime value from file", e);
+            Log.e(TAG, "Error reading bootCount value from file", e);
+            return -1;
         } finally {
             IoUtils.closeQuietly(in);
             IoUtils.closeQuietly(fileInputStream);
         }
-        return elapsedRealTime;
+        return bootCount;
     }
 
-    public static String getFilePath(Context context) {
+    @VisibleForTesting
+    static String getFilePath(Context context) {
         return context.getObbDir() + File.separator + FILE_NAME;
     }
 }

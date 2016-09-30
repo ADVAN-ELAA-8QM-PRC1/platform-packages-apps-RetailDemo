@@ -16,45 +16,75 @@
 
 package com.android.retaildemo;
 
+import android.content.Context;
 import android.support.test.filters.SmallTest;
 import android.support.test.runner.AndroidJUnit4;
 
-import com.android.retaildemo.DataReaderWriter;
-
 import java.io.File;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import static android.support.test.InstrumentationRegistry.getTargetContext;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.when;
 
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class DataReaderWriterTest {
 
-    @Test
-    public void testSetGetElapsedTime() {
-        final long elapsedRealTime = 20000;
-        DataReaderWriter.setElapsedRealTime(getTargetContext(), elapsedRealTime);
-        assertEquals(elapsedRealTime, DataReaderWriter.getElapsedRealTime(getTargetContext()));
-    }
+    private @Mock Context mContext;
 
-    @Test
-    public void testSetGetElapsedTime_fileAlreadyExists() throws Exception {
-        new File(DataReaderWriter.getFilePath(getTargetContext())).createNewFile();
+    private File mDataFile;
 
-        final long elapsedRealTime = 40000;
-        DataReaderWriter.setElapsedRealTime(getTargetContext(), elapsedRealTime);
-        assertEquals(elapsedRealTime, DataReaderWriter.getElapsedRealTime(getTargetContext()));
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+
+        when(mContext.getObbDir()).thenReturn(getTargetContext().getCacheDir());
+        mDataFile = new File(DataReaderWriter.getFilePath(mContext));
+        deleteDataFile();
     }
 
     @After
     public void tearDown() {
-        final File file = new File(DataReaderWriter.getFilePath(getTargetContext()));
-        if (file.exists()) {
-            file.delete();
+        deleteDataFile();
+    }
+
+    @Test
+    public void testWriteReadLastBootCount() {
+        final int testBootCount = 11;
+        DataReaderWriter.writeLastBootCount(mContext, testBootCount);
+        assertEquals(testBootCount, DataReaderWriter.readLastBootCount(mContext));
+    }
+
+    @Test
+    public void testWriteReadLastBootCount_fileAlreadyExists() throws Exception {
+        mDataFile.createNewFile();
+
+        final int testBootCount = 11;
+        DataReaderWriter.writeLastBootCount(mContext, testBootCount);
+        assertEquals(testBootCount, DataReaderWriter.readLastBootCount(mContext));
+    }
+
+    @Test
+    public void testReadLastBootCount_firstTime() {
+        assertEquals(0, DataReaderWriter.readLastBootCount(mContext));
+    }
+
+    @Test
+    public void testReadLastBootCount_error() throws Exception {
+        mDataFile.createNewFile();
+        assertEquals(-1, DataReaderWriter.readLastBootCount(mContext));
+    }
+
+    private void deleteDataFile() {
+        if (mDataFile.exists()) {
+            mDataFile.delete();
         }
     }
 }

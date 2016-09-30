@@ -56,14 +56,6 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     private static final boolean DEBUG = false;
 
     /**
-     * We save the real elapsed time to serve as an indication for downloading the demo video
-     * for the next device boot. The device could boot fast at times and could result in
-     * skipping the download during the next boot sessions. To be safe from cases like this, we
-     * add this offset to the real elapsed time.
-     */
-    private static final long REAL_ELAPSED_TIME_OFFSET_MS = 60 * 1000; // 1 min
-
-    /**
      * Maximum amount of time to wait for demo user to set up.
      * After it the user can tap the screen to exit
      */
@@ -185,12 +177,21 @@ public class DemoPlayer extends Activity implements DownloadVideoTask.ResultList
     }
 
     private boolean checkIfDownloadingAllowed() {
-        final long lastRealElapsedTime = DataReaderWriter.getElapsedRealTime(this);
-        final long realElapsedTime = SystemClock.elapsedRealtime();
+        final int lastBootCount = DataReaderWriter.readLastBootCount(this);
+        final int bootCount = Settings.Global.getInt(getContentResolver(),
+                Settings.Global.BOOT_COUNT, -1);
+        // Something went wrong, don't do anything.
+        if (bootCount == -1) {
+            return false;
+        }
+        // Error reading the last boot count, just write the current boot count.
+        if (lastBootCount == -1) {
+            DataReaderWriter.writeLastBootCount(this, bootCount);
+            return false;
+        }
         // We need to download the video atmost once after every boot.
-        if (lastRealElapsedTime == 0 || realElapsedTime < lastRealElapsedTime) {
-            DataReaderWriter.setElapsedRealTime(this,
-                    realElapsedTime + REAL_ELAPSED_TIME_OFFSET_MS);
+        if (lastBootCount != bootCount) {
+            DataReaderWriter.writeLastBootCount(this, bootCount);
             return true;
         }
         return false;
