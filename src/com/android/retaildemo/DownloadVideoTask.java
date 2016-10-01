@@ -138,8 +138,19 @@ class DownloadVideoTask {
 
             final long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0);
             if (id == mVideoDownloadId) {
-                if (checkDownloadsAndSetVideo(id) && mProgressDialog != null) {
-                    mProgressDialog.dismiss();
+                final int status = checkDownloadsAndSetVideo(id);
+                if (status == DownloadManager.STATUS_SUCCESSFUL ||
+                        status == DownloadManager.STATUS_FAILED) {
+                    if (mProgressDialog != null) {
+                        mProgressDialog.dismiss();
+                    }
+                    if (mDownloadReceiver != null) {
+                        mContext.unregisterReceiver(mDownloadReceiver);
+                        mDownloadReceiver = null;
+                    }
+                    if (status == DownloadManager.STATUS_FAILED) {
+                        mListener.onError();
+                    }
                 }
             } else if (id == mVideoUpdateDownloadId) {
                 mHandler.sendMessage(mHandler.obtainMessage(MSG_DOWNLOAD_COMPLETE));
@@ -211,18 +222,15 @@ class DownloadVideoTask {
         }
     }
 
-    private boolean checkDownloadsAndSetVideo(long downloadId) {
+    private int checkDownloadsAndSetVideo(long downloadId) {
         final DownloadManager.Query query =
                 new DownloadManager.Query().setFilterById(downloadId);
         Cursor cursor = mDlm.query(query);
         try {
             if (cursor != null & cursor.moveToFirst()) {
                 final int columnIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-                if (cursor.getInt(columnIndex) == DownloadManager.STATUS_SUCCESSFUL) {
-                    if (mDownloadReceiver != null) {
-                        mContext.unregisterReceiver(mDownloadReceiver);
-                        mDownloadReceiver = null;
-                    }
+                final int status = cursor.getInt(columnIndex);
+                if (status == DownloadManager.STATUS_SUCCESSFUL) {
                     final String fileUri = cursor.getString(
                             cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI));
                     mDownloadedPath = Uri.parse(fileUri).getPath();
@@ -230,8 +238,8 @@ class DownloadVideoTask {
                     mListener.onFileDownloaded(mDownloadedPath);
                     mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_CLEANUP_DOWNLOAD_DIR),
                             CLEANUP_DELAY_MILLIS);
-                    return true;
                 }
+                return status;
             }
         } finally {
             if (cursor != null) {
@@ -242,7 +250,7 @@ class DownloadVideoTask {
                 mNetworkChangeReceiver = null;
             }
         }
-        return false;
+        return -1;
     }
 
     private class NetworkChangeReceiver extends BroadcastReceiver {
