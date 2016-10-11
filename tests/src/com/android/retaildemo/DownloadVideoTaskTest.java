@@ -181,6 +181,35 @@ public class DownloadVideoTaskTest {
     }
 
     @Test
+    public void testDownloadVideo_downloadFailed() throws Exception {
+        final DownloadVideoTask task = new DownloadVideoTask(mContext,
+                mDownloadPath, mPreloadedVideo, mResultListener, new TestInjector(mContext));
+        when(mDownloadManager.enqueue(any(DownloadManager.Request.class)))
+                .thenReturn(TEST_DOWNLOAD_ID);
+
+        task.run();
+
+        final ArgumentCaptor<BroadcastReceiver> downloadReceiver =
+                verifyIfDownloadCompleteReceiverRegistered();
+
+        verify(mProgressDialog, times(1)).show();
+
+        final Cursor cursor = createCursor(DownloadManager.STATUS_FAILED, mDownloadPath);
+        when(mDownloadManager.query(any(DownloadManager.Query.class))).thenReturn(cursor);
+
+        final Intent downloadCompleteIntent = new Intent(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+                .putExtra(DownloadManager.EXTRA_DOWNLOAD_ID, TEST_DOWNLOAD_ID);
+        downloadReceiver.getValue().onReceive(mContext, downloadCompleteIntent);
+
+        verify(mContext).unregisterReceiver(downloadReceiver.getValue());
+
+        verify(mResultListener, times(1)).onError();
+        verifyNoMoreInteractions(mResultListener);
+
+        verify(mProgressDialog, times(1)).dismiss();
+    }
+
+    @Test
     public void testDownloadUpdatedVideo() throws Exception {
         new File(mDownloadPath).createNewFile();
 
